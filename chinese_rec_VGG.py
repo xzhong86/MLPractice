@@ -41,6 +41,7 @@ def init_flags(paiml, mode):
     tf.app.flags.DEFINE_integer('eval_steps', 100, "the step num to eval") 
     # save checkpoint for each 1000 steps
     tf.app.flags.DEFINE_integer('save_steps', 1000, "the steps to save") 
+    tf.app.flags.DEFINE_integer('chkpt_max_keep', 10, "max checkpoint to keep") 
 
     tf.app.flags.DEFINE_string('aiml_dir', paiml, 'AIML root dir')
     tf.app.flags.DEFINE_string('checkpoint_dir', paiml + 'dfs/checkpoint/', 'the checkpoint dir') 
@@ -215,7 +216,7 @@ def train():
         sess.run(tf.global_variables_initializer()) 
         coord = tf.train.Coordinator() 
         threads = tf.train.start_queue_runners(sess=sess, coord=coord) 
-        saver = tf.train.Saver() 
+        saver = tf.train.Saver(max_to_keep=FLAGS.chkpt_max_keep) 
  
         train_writer = tf.summary.FileWriter(FLAGS.log_dir + '/train', sess.graph) 
         test_writer = tf.summary.FileWriter(FLAGS.log_dir + '/val') 
