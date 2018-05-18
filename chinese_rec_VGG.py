@@ -40,7 +40,7 @@ def init_flags(paiml, mode):
     tf.app.flags.DEFINE_integer('max_steps', 200002, 'the max training steps ') 
     tf.app.flags.DEFINE_integer('eval_steps', 100, "the step num to eval") 
     # save checkpoint for each 1000 steps
-    tf.app.flags.DEFINE_integer('save_steps', 1000, "the steps to save") 
+    tf.app.flags.DEFINE_integer('save_steps', 10000, "the steps to save") 
     tf.app.flags.DEFINE_integer('chkpt_max_keep', 10, "max checkpoint to keep") 
 
     tf.app.flags.DEFINE_string('aiml_dir', paiml, 'AIML root dir')
@@ -396,6 +396,9 @@ def do_estimate(predict_dir, wdict, results):
 
 def main(argv=None):
     logname = None
+    if argv and len(argv) > 0:
+        print("Args possible wrong: " + " ".join(argv))
+
     if FLAGS.mode == "train" or FLAGS.with_log:
         date = time.strftime('%Y_%m%d_%H%M')
         logname = '{0}-{1}.log'.format(FLAGS.mode, date)
