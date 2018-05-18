@@ -1,8 +1,12 @@
 #!/usr/bin/env ruby
 
 require 'ostruct'
+require 'optparse'
 
-load './SimpleHTML.rb'
+$bin_dir = File.expand_path('..', __FILE__)
+
+load $bin_dir + '/SimpleHTML.rb'
+
 
 $opts = OpenStruct.new
 
@@ -56,7 +60,8 @@ def gen_html(fname, loginfo)
                   when 3..4 then 'orange'
                   else 'red'
                   end
-        path = 'http://10.174.31.31/bruce/aiml/handwriting/' + res.path
+        #path = 'http://10.174.31.31/bruce/aiml/handwriting/' + res.path
+        path = $opts.img_root + '/' + res.path
         _tr {
           _td('Out' + res.outn.to_s, "bgcolor=\"#{bgcolor}\"")
           _td(res.except)
@@ -69,6 +74,19 @@ def gen_html(fname, loginfo)
   html.close
 end
 
-info = read_filter_log(ARGV[0])
-gen_html('test.html', info)
+# main start
+OptionParser.new do |opts|
+  opts.banner = "gen-result-html.rb [options] result.log"
+  opts.on('--img-root DIR', 'specify IMG ROOT in html') { |d| $opts.img_root = d }
+  opts.on('--out HTML', 'specify output file') { |f| $opts.out = f }
+end.parse!
+
+fail "need log file" if ARGV.empty?
+logfile = ARGV[0]
+
+$opts.out ||= '/dev/stdout'
+$opts.img_root ||= Dir.pwd
+
+info = read_filter_log(logfile)
+gen_html($opts.out, info)
 
