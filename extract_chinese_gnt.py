@@ -31,7 +31,7 @@ def read_from_gnt_dir(gnt_dir):
 
 class CodeToID:
     def __init__(self):
-        self.id_cnt = 0
+        #self.id_cnt = 0
         self.tag2id = {}
         self.tagarr = []
         self.lock = threading.Lock()
@@ -49,16 +49,26 @@ class CodeToID:
         return id
 
     def getUnicode(self, id):
-        struct.pack('>H', self.tagarr[id]).decode('gb2312')
+        return struct.pack('>H', self.tagarr[id]).decode('gb2312')
+
+    def getWordList(self):
+        return [ self.getUnicode(i) for i in range(len(self.tagarr)) ]
+
+    def getWordDict(self):
+        dic = {}
+        for i in range(len(self.tagarr)):
+            dic[str(i)] = self.getUnicode(i)
+        return dic
 
     def __getitem__(id):
-        getUnicode(id)
+        return self.getUnicode(id)
 
 
 def extract_gnts(idtab, gnt_dir, out_dir):
     counter = 0
     for image, tagcode, gntfile in read_from_gnt_dir(gnt_dir):  
         id = idtab.getId(tagcode)
+        #continue
         im = PIL.Image.fromarray(image) 
         sub = '%05d' % id
         dir = os.path.join(out_dir, sub)
@@ -93,5 +103,9 @@ test_data_dir = "gnt_test"
 idtab = CodeToID()
 extract_gnts(idtab, train_data_dir, 'train')
 extract_gnts(idtab, test_data_dir,  'test')
-pickle.dump(idtab, 'idtable.bin', 2)
+#with open('idtable.bin', 'wb') as fh:
+#    pickle.dump(idtab, fh, 2)
+#print(idtab.getUnicodeList())
+with open('word_dict', 'wb') as fh:
+    pickle.dump(idtab.getWordDict(), fh, 2)
 
