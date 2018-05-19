@@ -72,7 +72,7 @@ def extract_gnts(idtab, gnt_dir, out_dir):
         im = PIL.Image.fromarray(image) 
         sub = '%05d' % id
         dir = os.path.join(out_dir, sub)
-        fname = sub + gntfile[0:4] + '.png'
+        fname = sub + '_' + gntfile[0:4] + '.png'
         if not os.path.exists(dir):
             os.mkdir(dir)
         im.convert('RGB').save(os.path.join(dir, fname))
