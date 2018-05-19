@@ -82,15 +82,17 @@ def do_big_inference(file_list, chkpt_prefix):
         keep_prob = graph.get_tensor_by_name('keep_prob:0')
 
         results = []
-        for gp in range(0, len(file_list), 5000):
+        gp_size = 1000
+        for gp in range(0, len(file_list), gp_size):
             image_list = []
-            for _file in file_list[gp:gp+5000]:
+            tm_start = time.time()
+            for _file in file_list[gp:gp+gp_size]:
                 temp_image = Image.open(_file).convert('L')
                 temp_image = temp_image.resize((64, 64), Image.ANTIALIAS)           
                 temp_image = np.asarray(temp_image) / 255.0
                 image_list.append(temp_image)
 
-            print("inference group %d:%d" % (gp, gp+5000))
+            tm_infer = time.time()
             num_files = len(image_list)
             image_list = np.asarray(image_list)       
             temp_image = image_list.reshape([num_files, 64, 64, 1])
@@ -98,8 +100,45 @@ def do_big_inference(file_list, chkpt_prefix):
             for word in probs:
                 results.append(np.argsort(-word)[:5])
 
+            print("inference group %d:%d, image %.2f's, inference %.2f's" %
+                  (gp, gp+gp_size, tm_infer - tm_start, time.time() - tm_infer))
+
         return { 'results': results, 'images': file_list }
 
+def do_pipe_inference(file_list, chkpt_prefix):
+    print("file 0 ", file_list[0])
+    images_tensor = tf.convert_to_tensor(file_list, dtype=tf.string) 
+    input_queue = tf.train.slice_input_producer([images_tensor]) 
+ 
+    images_content = tf.read_file(input_queue[0]) 
+    images = tf.image.convert_image_dtype(tf.image.decode_png(images_content, channels=1), tf.float32) 
+
+    new_size = tf.constant([FLAGS.image_size, FLAGS.image_size], dtype=tf.int32) 
+    images = tf.image.resize_images(images, new_size) 
+    tf_image_batch = tf.train.batch([images], batch_size=128, capacity=50000) 
+
+    saver = tf.train.import_meta_graph( chkpt_prefix + '.meta', clear_devices=True)
+    with tf.Session() as sess: 
+        saver.restore(sess, chkpt_prefix) # load paramters
+        graph = tf.get_default_graph()
+        op = graph.get_tensor_by_name("prediction:0")
+        input_tensor = graph.get_tensor_by_name('image_batch:0')
+        keep_prob = graph.get_tensor_by_name('keep_prob:0')
+
+        coord = tf.train.Coordinator() 
+        threads = tf.train.start_queue_runners(sess=sess, coord=coord) 
+
+        results = []
+        while not coord.should_stop():
+            print("run tf_image_batch")
+            image_batch = sess.run(tf_image_batch) 
+            probs = sess.run(op,feed_dict = {input_tensor:image_batch, keep_prob:1.0})
+            for word in probs:
+                results.append(np.argsort(-word)[:5])
+            if len(results) > 0 and len(results) % 5000 == 0:
+                print("%d images checked" % len(results))
+
+        return { 'results': results, 'images': file_list }
 
 def do_estimate(wdict, pred_results):
     images = pred_results['images']
@@ -123,13 +162,14 @@ def do_estimate(wdict, pred_results):
 
 def main(argv=None):
     paiml = FLAGS.aiml_dir
-    word_dict = pickle.load(open(paiml + "code/word_dict", "rb"))
+    wdict_path = FLAGS.wdict or paiml + "code/word_dict"
+    word_dict = pickle.load(open(wdict_path, "rb"))
     chkpt_prefix = FLAGS.chkpt or paiml + 'code/model-0001'
     pred_dir = FLAGS.pred_dir or paiml + 'data/'
 
     if FLAGS.mode == "filter":
-        print("run filter function")
-        file_list = get_file_list(pred_dir, True, True)
+        #print("run filter function")
+        file_list = get_file_list(pred_dir, True, False)
         print("get %d files, start inference..." % len(file_list))
         if len(file_list) > 5000:
             pred_res  = do_big_inference(file_list, chkpt_prefix)

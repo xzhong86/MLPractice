@@ -31,6 +31,7 @@ def init_logger(filename):
 
 def init_flags(paiml, mode):
     tf.app.flags.DEFINE_boolean('random_flip_up_down', False, "Whether to random flip up down") 
+    tf.app.flags.DEFINE_boolean('random_rotate', False, "whether to use random rotate 90/270") 
     tf.app.flags.DEFINE_boolean('random_brightness', True, "whether to adjust brightness") 
     tf.app.flags.DEFINE_boolean('random_contrast', True, "whether to random constrast") 
 
@@ -54,7 +55,7 @@ def init_flags(paiml, mode):
     tf.app.flags.DEFINE_integer('batch_size', 128, 'Validation batch size') 
     tf.app.flags.DEFINE_string('mode', mode, 'Running mode. One of {"train", "valid", "inference"}')
 
-    tf.app.flags.DEFINE_float('acc_top', 0.85, 'set top accuracy')
+    #tf.app.flags.DEFINE_float('acc_top', 0.85, 'set top accuracy')
     tf.app.flags.DEFINE_boolean('with_log', False, 'enable log file')
     tf.app.flags.DEFINE_string('chkpt', None, 'set chkpt prefix path')
     tf.app.flags.DEFINE_string('pred_dir', None, 'set pred_dir path')
@@ -85,7 +86,9 @@ class DataIterator:
     @staticmethod 
     def data_augmentation(images): 
         if FLAGS.random_flip_up_down: 
-            images = tf.image.random_flip_up_down(images) 
+            images = tf.image.random_flip_up_down(images)
+        if FLAGS.random_rotate:
+            images = tf.image.rot90(images, 1 if random.random() < 0.5 else 3)
         if FLAGS.random_brightness: 
             images = tf.image.random_brightness(images, max_delta=0.3) 
         if FLAGS.random_contrast: 
@@ -233,7 +236,6 @@ def train():
             logger.info("FLAGS.restore:" + str(FLAGS.restore))
  
         logger.info(':::Training Start:::') 
-        acc_top = FLAGS.acc_top or 0.85
         try: 
             while not coord.should_stop(): 
                 start_time = time.time() 
@@ -262,13 +264,6 @@ def train():
                     logger.info( 'the step {0} test accuracy: {1}' 
                                 .format(step, accuracy_test)) 
                     logger.debug('===============Eval a batch=======================') 
-                    if accuracy_test - acc_top >= 0.005:
-                        logger.info('Save new top result of {0}, {1} => {2}'.format(
-                            step, acc_top, accuracy_test))
-                        acc_top = accuracy_test
-                        saver.save(sess, os.path.join(FLAGS.checkpoint_dir, 'my-top'),
-                                    global_step=graph['global_step'])
-                        continue
                 
                 if step % FLAGS.save_steps == 1: 
                     logger.info('Save the ckpt of {0}'.format(step)) 
